@@ -41,9 +41,13 @@ def main():
     )
     df = df.drop(columns="PreviousSalary")
 
+    #----------------- -----------------------------
+    
     # HaveWorkedWith → dummy‑kolumner
     haveworked_dummies = df["HaveWorkedWith"].str.get_dummies(sep=";")
     df = pd.concat([df.drop(columns="HaveWorkedWith"), haveworked_dummies], axis=1)
+    
+    # __--__--_---____----____----_____------__
     
     computer_skills = haveworked_dummies.columns.tolist()
     df["ComputerSkills"] = haveworked_dummies.sum(axis=1)
@@ -74,9 +78,9 @@ def main():
     # RandomForest
     rf = RandomForestClassifier(
         n_estimators=300,
-        max_depth=None,
+        max_depth=None, # Testa byta senare
         random_state=42,
-        n_jobs=-1
+        n_jobs=-1 #
     )
     rf.fit(X_train, y_train)
     
@@ -112,16 +116,16 @@ def main():
         y_pred = model.predict(X_test)
         y_proba = model.predict_proba(X_test)[:, 1]
 
-        print(f"👀 Tränings‑precision:  {model.score(X_train, y_train):.4f}")
-        print(f"👀 Test‑precision:     {model.score(X_test, y_test):.4f}")
+        print(f"Tränings‑precision:  {model.score(X_train, y_train):.4f}")
+        print(f"Test‑precision:     {model.score(X_test, y_test):.4f}")
 
-        print("\n📊 Confusion‑matrix (Test)")
+        print("\n Confusion‑matrix (Test)")
         print(confusion_matrix(y_test, y_pred))
 
-        print("\n📄 Klassifikations‑rapport (Test)")
+        print("\n Klassifikations‑rapport (Test)")
         print(classification_report(y_test, y_pred, zero_division=0))
 
-        print(f"\n📈 ROC‑AUC (Test): {roc_auc_score(y_test, y_proba):.4f}")
+        print(f"\n ROC‑AUC (Test): {roc_auc_score(y_test, y_proba):.4f}")
 
     # ---------------------------------------------
     # 5. Spara modeller + metadata
