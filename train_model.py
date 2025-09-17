@@ -41,9 +41,15 @@ def main():
     )
     df = df.drop(columns="PreviousSalary")
 
-    # HaveWorkedWith → dummy‑kolumner
-    haveworked_dummies = df["HaveWorkedWith"].str.get_dummies(sep=";")
-    df = pd.concat([df.drop(columns="HaveWorkedWith"), haveworked_dummies], axis=1)
+    
+    cols_drop = [
+    "Gender",
+    "MentalHealth",
+    "Accessibility",
+    "Unnamed: 0",
+    "HaveWorkedWith",   # tar bort råkolumnen
+    ]
+    df = df.drop(columns=[c for c in cols_drop if c in df.columns])
 
     # ---------------------------------------------
     # 2. Features / target **(före one‑hot)**
@@ -117,7 +123,6 @@ def main():
             "rf_model": rf,
             "xgb_model": xgb,
             "features": X.columns,
-            "dummy_cols": haveworked_dummies.columns.tolist(),
             "cat_opts": cat_opts,
         },
         MODEL_FILE
