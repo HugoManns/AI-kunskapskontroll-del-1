@@ -55,13 +55,15 @@ with col2:
         min_value=0.0, max_value=6.0, value=1.0, step=0.01
     )
 
-    st.subheader("Färdigheter (max 10)")
+    st.subheader("Färdigheter (max 15)")
     skills_selected = st.multiselect(
         "Har arbetat med",
         options=sorted(DUMMY_COLS),
         default=[],
-        max_selections=10
+        max_selections=15
     )
+    computer_skills = len(skills_selected)
+    st.caption(f"Valda färdigheter: {computer_skills}")
 
 # ---------------------------------------------
 # 4.  Bygg kandidat‑row
@@ -76,6 +78,7 @@ def build_candidate_row():
         "YearsCode": years_code,
         "YearsCodePro": years_code_pro,
         "PreviousSalary_norm": salary_norm,
+        "ComputerSkills": computer_skills
     }
 
     # HaveWorkedWith‑dummies

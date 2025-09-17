@@ -44,6 +44,9 @@ def main():
     # HaveWorkedWith → dummy‑kolumner
     haveworked_dummies = df["HaveWorkedWith"].str.get_dummies(sep=";")
     df = pd.concat([df.drop(columns="HaveWorkedWith"), haveworked_dummies], axis=1)
+    
+    computer_skills = haveworked_dummies.columns.tolist()
+    df["ComputerSkills"] = haveworked_dummies.sum(axis=1)
 
     # ---------------------------------------------
     # 2. Features / target **(före one‑hot)**
@@ -76,7 +79,18 @@ def main():
         n_jobs=-1
     )
     rf.fit(X_train, y_train)
-
+    
+    '''
+    
+    # Visa feature‑importances
+    import matplotlib.pyplot as plt
+    feature_importances_rf = pd.Series(rf.feature_importances_, index=X_train.columns)
+    feature_importances_rf.nlargest(10).plot(kind='barh')
+    plt.title('Topp 10 Features (Random Forest)')
+    plt.show()
+    
+    '''
+    
     # XGBoost
     xgb = XGBClassifier(
         n_estimators=300,
@@ -127,3 +141,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
