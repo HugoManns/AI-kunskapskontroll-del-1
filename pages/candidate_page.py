@@ -4,54 +4,62 @@ import streamlit as st
 import pandas as pd
 import joblib
 
+# ------------------------------------------------------------------
+# 1.  Läsa in modell + metadata
+# ------------------------------------------------------------------
 MODEL_FILE = "model_stl.pkl"
 meta = joblib.load(MODEL_FILE)
 
-# ----- Meta‑variabler
-X_FEATURES    = meta["features"]
-DUMMY_COLS    = meta["dummy_cols"]
-CAT_OPTIONS   = meta["cat_opts"]
+X_FEATURES   = meta["features"]         # In‑feature‑kolumner
+DUMMY_COLS   = meta["dummy_cols"]       # Skill‑dummy‑kolumner
+CAT_OPTIONS  = meta["cat_opts"]         # Unika värden för kategoriska fält
 
-# ----- Streamlit‑layout
+# ------------------------------------------------------------------
+# 2.  State‑initialisering
+# ------------------------------------------------------------------
+if "step" not in st.session_state:
+    st.session_state.step = 0          # stegring i wizard
+if "answers" not in st.session_state:
+    st.session_state.answers = {}     # lagrar användarens svar i form av dict
+
+# ------------------------------------------------------------------
+# 3.  Layout
+# ------------------------------------------------------------------
 st.set_page_config(page_title="Nytt kandidatinlägg", layout="wide")
-st.title("Lägg till en ny kandidat")
+st.title("Lägg till en ny kandidat – steg för steg")
 
-# ---- 1. Formulär
-with st.form(key="candidate_form"):
-    col1, col2 = st.columns([1, 2])
+# ------------------------------------------------------------------
+# 4.  Hjälp‑funktioner
+# ------------------------------------------------------------------
+def next_step():
+    st.session_state.step += 1
 
-    # Kategoriska attribut
-    with col1:
-        st.subheader("Kategoriska attribut")
-        age          = st.selectbox("Ålder",      sorted(CAT_OPTIONS["Age"]))
-        ed_level     = st.selectbox("Utbildningsnivå", sorted(CAT_OPTIONS["EdLevel"]))
-        country      = st.selectbox("Land (grupperat)", sorted(CAT_OPTIONS["Country_grouped"]))
-        main_branch  = st.selectbox("Huvudgren",         sorted(CAT_OPTIONS["MainBranch"]))
-        employment   = st.radio("Anställningstyp", [0, 1], index=1)
+def prev_step():
+    st.session_state.step -= 1
 
-    # Numeriska attribut & färdigheter
-    with col2:
-        st.subheader("Numeriska attribut & färdigheter")
-        years_code        = st.number_input("Totala års kodning", min_value=0, max_value=60, value=5)
-        years_code_pro    = st.number_input("År professionell kodning", min_value=0, max_value=60, value=3)
-        salary_norm       = st.number_input("Normaliserad lön", min_value=0.0, max_value=6.0, value=1.0, step=0.01)
+def finish_and_save():
+    """
+    Bygger DataFrame ur alla svar, sparar till CSV
+    och visar den sparade raden.
+    """
+    # ---- Spara med safe defaults ----
+    age           = st.session_state.get("age", sorted(CAT_OPTIONS["Age"])[0])
+    ed_level      = st.session_state.get("ed_level", sorted(CAT_OPTIONS["EdLevel"])[0])
+    country       = st.session_state.get("country", sorted(CAT_OPTIONS["Country_grouped"])[0])
+    main_branch   = st.session_state.get("main_branch", sorted(CAT_OPTIONS["MainBranch"])[0])
+    employment    = st.session_state.get("employment", 1)
+    years_code    = st.session_state.get("years_code", 5)
+    years_code_pro= st.session_state.get("years_code_pro", 3)
+    salary_norm   = st.session_state.get("salary_norm", 1.0)
+    skills_selected = st.session_state.get("skills_selected", [])
+    computer_skills  = len(skills_selected)
 
-        st.subheader("Färdigheter (max 15)")
-        skills_selected   = st.multiselect(
-            "Har arbetat med",
-            options=sorted(DUMMY_COLS),
-            default=[],
-            max_selections=15
-        )
-        computer_skills   = len(skills_selected)
-        st.caption(f"Valda färdigheter: {computer_skills}")
+    # --- Email, om det fanns inmatat --------------------------------
+    email          = st.session_state.get("email", "unknown@example.com")
 
-    # –– 2. Klicka för att spara
-    submitted = st.form_submit_button("Spara kandidat till CSV")
-
-# ---- 3. Bygg DataFrame
-def build_candidate_df():
+    # ---- Bygg en rad som i build_candidate_row() --------------------
     row = {
+        "Email": email,                           # <-- ny kolumn
         "Age": age,
         "EdLevel": ed_level,
         "Country_grouped": country,
@@ -67,22 +75,196 @@ def build_candidate_df():
     for col in DUMMY_COLS:
         row[col] = 1 if col in skills_selected else 0
 
+    # Skapa DataFrame / reindex
     raw_df   = pd.DataFrame([row])
     encoded  = pd.get_dummies(raw_df, drop_first=True)
-    candidate = encoded.reindex(columns=X_FEATURES, fill_value=0)
-    return candidate
+    candidate_df = encoded.reindex(columns=X_FEATURES, fill_value=0)
 
-# ---- 4. Spara till CSV
-if submitted:
-    cand_df = build_candidate_df()
+    # Lägg till e‑post‑kolumn (ej del av X_FEATURES)
+    candidate_df["Email"] = email
 
+    # ---- Append till CSV ------------------------------------------------
     csv_path = "candidates.csv"
-
-    # Skapa filen första gången
     if not os.path.isfile(csv_path):
-        cand_df.to_csv(csv_path, index=False)
-    else:   # Append utan header
-        cand_df.to_csv(csv_path, mode="a", header=False, index=False)
+        candidate_df.to_csv(csv_path, index=False)
+    else:
+        candidate_df.to_csv(csv_path, mode="a", header=False, index=False)
 
+    # ---- Resultat --------------------------------------------------------
     st.success("Kandidaten sparades i `candidates.csv`")
-    st.dataframe(cand_df)   # Visa den sparade raden
+    st.subheader("Sparad rad")
+    st.dataframe(candidate_df)
+
+# ------------------------------------------------------------------
+# 5.  Wizard‑logik – visa ett formulär‑steg i taget
+# ------------------------------------------------------------------
+step = st.session_state.step
+
+# ---------- Steg 0 – Ålder ------------------------------------------
+if step == 0:
+    st.subheader("1️⃣  Ålder")
+
+    age_num = st.number_input(
+        "Ålder",
+        min_value=0,
+        max_value=120,
+        value=25,
+        key="age_num"
+    )
+
+    def age_to_cat(age: int) -> str:
+        cats = sorted(CAT_OPTIONS["Age"])
+        for cat in cats:
+            if str(age) in cat:
+                return cat
+        return "Under 35" if age < 35 else "Över 35"
+
+    st.session_state["age"] = age_to_cat(age_num)
+
+    col_next, _ = st.columns([1, 1])
+    with col_next:
+        st.button("Nästa ➡️", on_click=next_step)
+
+# ---------- Steg 1 – Email (nytt steg) --------------------------------
+elif step == 1:
+    st.subheader("✉️  Emailadress")
+    st.text_input(
+        "Ange kandidatens email",
+        value="",
+        key="email"
+    )
+    if st.session_state.get("email") and "@" not in st.session_state["email"]:
+        st.warning("Ogiltig emailadress, kontrollera att du har med '@'.")
+
+    col_prev, col_next = st.columns([1, 1])
+    with col_prev:
+        st.button("← Back", on_click=prev_step)
+    with col_next:
+        st.button("Nästa ➡️", on_click=next_step)
+
+# ---------- Steg 2 – Utbildningsnivå --------------------------------
+elif step == 2:
+    st.subheader("Utbildningsnivå")
+    st.selectbox(
+        "Utbildningsnivå",
+        sorted(CAT_OPTIONS["EdLevel"]),
+        key="ed_level"
+    )
+    col_prev, col_next = st.columns([1, 1])
+    with col_prev:
+        st.button("← Back", on_click=prev_step)
+    with col_next:
+        st.button("Nästa ➡️", on_click=next_step)
+
+# ---------- Steg 3 – Land --------------------------------------------
+elif step == 3:
+    st.subheader("Land (grupperat)")
+    st.selectbox(
+        "Land (grupperat)",
+        sorted(CAT_OPTIONS["Country_grouped"]),
+        key="country"
+    )
+    col_prev, col_next = st.columns([1, 1])
+    with col_prev:
+        st.button("← Back", on_click=prev_step)
+    with col_next:
+        st.button("Nästa ➡️", on_click=next_step)
+
+# ---------- Steg 4 – Huvudgren ---------------------------------------
+elif step == 4:
+    st.subheader("Huvudgren")
+    st.selectbox(
+        "Huvudgren",
+        sorted(CAT_OPTIONS["MainBranch"]),
+        key="main_branch"
+    )
+    col_prev, col_next = st.columns([1, 1])
+    with col_prev:
+        st.button("← Back", on_click=prev_step)
+    with col_next:
+        st.button("Nästa ➡️", on_click=next_step)
+
+# ---------- Steg 5 – Anställning ------------------------------------
+elif step == 5:
+    employment_labels = [
+        "Ja, Jag har en anställning",
+        "Nej, Jag är arbetslös",
+    ]
+    selected_label = st.radio(
+        "Anställningstyp",
+        options=employment_labels,
+        index=1,
+        key="employment_label"
+    )
+    employment_num = 0 if selected_label == employment_labels[0] else 1
+    st.session_state["employment"] = employment_num
+
+    col_prev, col_next = st.columns([1, 1])
+    with col_prev:
+        st.button("← Back", on_click=prev_step)
+    with col_next:
+        st.button("Nästa ➡️", on_click=next_step)
+
+# ---------- Steg 6 – Numeriska attribut --------------------------------
+elif step == 6:
+    st.subheader("Numeriska attribut")
+    st.number_input(
+        "Totala års kodning",
+        min_value=0,
+        max_value=60,
+        value=5,
+        key="years_code"
+    )
+    st.number_input(
+        "År professionell kodning",
+        min_value=0,
+        max_value=60,
+        value=3,
+        key="years_code_pro"
+    )
+    if st.session_state.get("years_code_pro", 0) > st.session_state.get("years_code", 0):
+        st.warning("År professionell kodning kan inte vara större än totala års kodning.")
+
+    st.number_input(
+        "Normaliserad lön",
+        min_value=0.0,
+        max_value=6.0,
+        value=1.0,
+        step=0.01,
+        key="salary_norm"
+    )
+    col_prev, col_next = st.columns([1, 1])
+    with col_prev:
+        st.button("← Back", on_click=prev_step)
+    with col_next:
+        st.button("Nästa ➡️", on_click=next_step)
+
+# ---------- Steg 7 – Färdigheter (sista steg, innehåller Spara) ---------
+elif step == 7:
+    st.subheader("Färdigheter (max 15)")
+    skills_selected = st.multiselect(
+        "Har arbetat med",
+        options=sorted(DUMMY_COLS),
+        default=[],
+        max_selections=15,
+        key="skills_selected"
+    )
+    st.caption(f"Valda färdigheter: {len(skills_selected)}")
+
+    col_prev, col_save = st.columns([1, 1])
+    with col_prev:
+        st.button("← Back", on_click=prev_step)
+    with col_save:
+        st.button(
+            "Spara kandidat till CSV",
+            on_click=finish_and_save,
+            type="primary"
+        )
+
+# ------------------------------------------------------------------
+# 6.  (Valfri extra funktion) – t.ex. ny kandidat utan att ladda om
+# ------------------------------------------------------------------
+if st.session_state.step > 0:
+    st.markdown("---")
+    if st.button("Lägg till en annan kandidat", key="new_candidate"):
+        st.session_state.step = 0
