@@ -9,7 +9,7 @@ import functools
 MODEL_FILE = "model_stl.pkl"
 META = joblib.load(MODEL_FILE)
 
-# ──────────────────────────────────────
+
 # 1. Modell‑val
 st.sidebar.title("Modell")
 model_choice = st.sidebar.radio(
