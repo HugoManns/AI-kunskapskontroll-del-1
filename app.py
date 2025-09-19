@@ -109,6 +109,7 @@ if st.button("Beräkna sannolikhet"):
     st.caption(
         f"Pre‑bedömning: **{'Anställd' if pred == 1 else 'Ej anställd'}**"
     )
-    st.json(candidate_df.iloc[0].to_dict())
+    
+    # st.json(candidate_df.iloc[0].to_dict())
 
 
