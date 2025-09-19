@@ -1,100 +1,109 @@
-
+# --- imports -------------------------------------------------------------
 import os
 import streamlit as st
 import pandas as pd
 import joblib
 import numpy as np
 
-
+# --- metadata -------------------------------------------------------------
 MODEL_FILE = "model_stl.pkl"
-META = joblib.load(MODEL_FILE)
 
-# 1. Modell-val
-st.sidebar.title("Modell")
-model_choice = st.sidebar.radio(
-    "Välj modell för att beräkna sannolikheten",
-    options=["Random Forest", "XGBoost", "Logistic Regression"],
-    index=0,
-)
-if model_choice == "Random Forest":
-    model = META["rf_model"]
-elif model_choice == "XGBoost":
-    model = META["xgb_model"]
-else:
-    model = META["lr_model"]
+# Use st.cache_resource to load the model once
+@st.cache_resource
+def load_meta():
+    return joblib.load(MODEL_FILE)
 
-# 2. Läs kandidat-fil
+META = load_meta()
+
+# -----------------------------------------------
+# 1. Modell (sparad i session_state så den finns när vi räknar)
+if "model" not in st.session_state:
+    st.sidebar.title("Modell")
+    model_choice = st.sidebar.radio(
+        "Välj modell för att beräkna sannolikheten",
+        options=["Random Forest", "XGBoost", "Logistic Regression"],
+        index=0,
+    )
+    if model_choice == "Random Forest":
+        st.session_state.model = META["rf_model"]
+    elif model_choice == "XGBoost":
+        st.session_state.model = META["xgb_model"]
+    else:
+        st.session_state.model = META["lr_model"]
+
+model = st.session_state.model
+
+# -----------------------------------------------
+# 2. Läs CSV – Korrigerat sätt att läsa in data
 csv_path = "candidates.csv"
 if not os.path.exists(csv_path):
-    st.info(f"Fil `{csv_path}` finns inte. Lägg in kandidater via *Lägg till kandidat*-sidan.")
+    st.info(f"Fil `{csv_path}` finns inte. Lägg in kandidater via *Lägg till kandidat*‑sidan.")
     st.stop()
 
-df_raw = pd.read_csv(csv_path, header=None)
+# Skapa en lista med alla förväntade kolumnnamn från modellen + de manuella
+ALL_COLUMNS = list(META["features"]) + ["Email"]
 
-X_FEATURES = META["features"]
-X_FEATURES_LIST = list(X_FEATURES)
+# Läs filen med pandas, nu med rätt antal kolumner
+df_all = pd.read_csv(
+    csv_path,
+    header=None,
+    names=ALL_COLUMNS, # Ange de exakta kolumnnamnen vid inläsning
+    engine="python",
+    on_bad_lines="skip",
+    na_values=[0] # Behandla nollor som saknade värden om det är så de sparas
+)
 
+# -----------------------------------------------
+# 3. Hantera "Employed"-kolumnen
+# Denna kolumn är inte i din `candidates.csv`, så vi skapar den
+# och ger den ett standardvärde (t.ex. "-")
+if "Employed" not in df_all.columns:
+    df_all["Employed"] = "-"
 
-if len(df_raw.columns) != len(X_FEATURES):
-    st.warning(
-        "Stämmer ej"
-    )
-    missing = set(X_FEATURES) - set(df_raw.columns)
-    for col in missing:
-        df_raw[col] = 0
-    df_raw = df_raw.reindex(columns=X_FEATURES)
+# -----------------------------------------------
+# 4. Beräkna sannolikheter
+X = df_all[META["features"]].copy()
+prob = model.predict_proba(X)[:, 1]
+df_all["Probability"] = prob
+df_all["Prediction"] = np.where(prob >= 0.5, "Anställd", "Ej anställd")
+df_all["Percentile"] = pd.Series(prob).rank(pct=True) * 100
+df_all = df_all.reset_index(drop=True)
+df_all["Kandidatindex"] = df_all.index + 1
 
-df_raw.columns = X_FEATURES 
+# -----------------------------------------------
+# 5. Visa tabell (inkludera Email om den finns)
+display_cols = ["Kandidatindex", "Probability", "Prediction", "Percentile", "Email", "Employed"]
 
+def color_pred(val):
+    if val == "Anställd":
+        return "background-color:#b7f5a7; color:black"
+    if val == "Ej anställd":
+        return "background-color:#f5a7a7; color:white"
+    return ""
 
-# “Employed”-kolumn
-if "Employed" not in df_raw.columns:
-    df_raw["Employed"] = "-"
-
-
-# modellen
 st.title("Inkomna kandidater")
-st.write(f"Antal kandidater: **{len(df_raw)}**")
-if len(df_raw) == 0:
+st.write(f"Antal kandidater: **{len(df_all)}**")
+if len(df_all) == 0:
     st.info("Ingen kandidat att visa.")
     st.stop()
 
-X = df_raw[X_FEATURES].copy()
-prob = model.predict_proba(X)[:, 1]
-df_raw["Probability"] = prob
-df_raw["Prediction"]  = np.where(prob >= 0.5, "Anställningsbar", "EJ anställningsbar")
-df_raw["Percentile"]  = pd.Series(prob).rank(pct=True) * 100
-df_raw = df_raw.reset_index(drop=True)
-df_raw["Kandidatindex"] = df_raw.index + 1
-
-
-
-display_cols = ["Kandidatindex", "Probability", "Prediction"]
+st.subheader("Kandidater")
 df_view = (
-    df_raw[display_cols]
+    df_all[display_cols]
     .sort_values("Probability", ascending=False)
     .reset_index(drop=True)
 )
 
-def color_prediction(val):
-    if val == "Anställningsbar":
-        return "background-color: green; color:black"
-    elif val == "EJ anställningsbar":
-        return "background-color: red; color:white"
-    return ""
-
-st.subheader("Kandidater")
 st.dataframe(
-    df_view.style.applymap(color_prediction, subset=["Prediction"]),
+    df_view.style.applymap(color_pred, subset=["Prediction"]),
     hide_index=True
 )
 
-
-# ──────────────────────────────────────
-# 7. Ladda ned fil
-csv_bytes = df_raw.to_csv(index=False).encode("utf-8")
+# -----------------------------------------------
+# 6. Ladda ned fil
+csv_bytes = df_all.to_csv(index=False).encode("utf-8")
 st.download_button(
-    label="Ladda ned CSV med kandidater",
+    label="📥 Ladda ned CSV med kandidater",
     data=csv_bytes,
     file_name="potential_candidates.csv",
     mime="text/csv",

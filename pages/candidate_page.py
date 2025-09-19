@@ -1,48 +1,37 @@
-# candidate_page.py
+# --- 1/2  – import, meta, state, layout  --------------------------------------------------------
 import os
 import streamlit as st
 import pandas as pd
 import joblib
 
-# ------------------------------------------------------------------
-# 1.  Läsa in modell + metadata
-# ------------------------------------------------------------------
 MODEL_FILE = "model_stl.pkl"
-meta = joblib.load(MODEL_FILE)
+META = joblib.load(MODEL_FILE)
 
-X_FEATURES   = meta["features"]         # In‑feature‑kolumner
-DUMMY_COLS   = meta["dummy_cols"]       # Skill‑dummy‑kolumner
-CAT_OPTIONS  = meta["cat_opts"]         # Unika värden för kategoriska fält
+X_FEATURES   = META["features"]       # 1‑d array / pd.Index
+DUMMY_COLS   = META["dummy_cols"]     # skill‑dummy‑kolumner
+CAT_OPTIONS  = META["cat_opts"]        # kategoriska värden
 
-# ------------------------------------------------------------------
-# 2.  State‑initialisering
-# ------------------------------------------------------------------
+# state‑initialisering
 if "step" not in st.session_state:
-    st.session_state.step = 0          # stegring i wizard
+    st.session_state.step = 0
 if "answers" not in st.session_state:
-    st.session_state.answers = {}     # lagrar användarens svar i form av dict
+    st.session_state.answers = {}
 
-# ------------------------------------------------------------------
-# 3.  Layout
-# ------------------------------------------------------------------
 st.set_page_config(page_title="Nytt kandidatinlägg", layout="wide")
 st.title("Lägg till en ny kandidat – steg för steg")
 
-# ------------------------------------------------------------------
-# 4.  Hjälp‑funktioner
-# ------------------------------------------------------------------
-def next_step():
-    st.session_state.step += 1
+# ----------------------------------------------------------------------
+# 5.  Wizard‑logik (samma som tidigare – se sista block i filen)
+# ----------------------------------------------------------------------
+# (kommentera gärna bort den gamla “write‑to‑csv”‑logiken, se slutet i filen – du hittar den t.ex. i
+#  “# ---------- Steg 7 – Färdigheter …”)
 
-def prev_step():
-    st.session_state.step -= 1
+def next_step():  st.session_state.step += 1
+def prev_step():  st.session_state.step -= 1
 
 def finish_and_save():
-    """
-    Bygger DataFrame ur alla svar, sparar till CSV
-    och visar den sparade raden.
-    """
-    # ---- Spara med safe defaults ----
+    """Bygger DataFrame & sparar till candidates.csv – även email."""
+    # --- samla in svar --------------------------------------------------
     age           = st.session_state.get("age", sorted(CAT_OPTIONS["Age"])[0])
     ed_level      = st.session_state.get("ed_level", sorted(CAT_OPTIONS["EdLevel"])[0])
     country       = st.session_state.get("country", sorted(CAT_OPTIONS["Country_grouped"])[0])
@@ -54,12 +43,12 @@ def finish_and_save():
     skills_selected = st.session_state.get("skills_selected", [])
     computer_skills  = len(skills_selected)
 
-    # --- Email, om det fanns inmatat --------------------------------
-    email          = st.session_state.get("email", "unknown@example.com")
+    # --- email --------------------------------------------------------
+    email        = st.session_state.get("email", "unknown@example.com")
 
-    # ---- Bygg en rad som i build_candidate_row() --------------------
+    # --- bygga rad ----------------------------------------------------
     row = {
-        "Email": email,                           # <-- ny kolumn
+        "Email": email,
         "Age": age,
         "EdLevel": ed_level,
         "Country_grouped": country,
@@ -71,29 +60,31 @@ def finish_and_save():
         "ComputerSkills": computer_skills,
     }
 
-    # Dummy‑kolumner för färdigheter
-    for col in DUMMY_COLS:
+    for col in DUMMY_COLS:   # dummy‑kolumner
         row[col] = 1 if col in skills_selected else 0
 
-    # Skapa DataFrame / reindex
     raw_df   = pd.DataFrame([row])
     encoded  = pd.get_dummies(raw_df, drop_first=True)
     candidate_df = encoded.reindex(columns=X_FEATURES, fill_value=0)
 
-    # Lägg till e‑post‑kolumn (ej del av X_FEATURES)
+    # lägg till email – denna kolumn **även** i filen
     candidate_df["Email"] = email
 
-    # ---- Append till CSV ------------------------------------------------
+    # --- skriv till csv -----------------------------------------------
     csv_path = "candidates.csv"
     if not os.path.isfile(csv_path):
-        candidate_df.to_csv(csv_path, index=False)
+        candidate_df.to_csv(csv_path, index=False)           # first write -> header present
     else:
-        candidate_df.to_csv(csv_path, mode="a", header=False, index=False)
+        candidate_df.to_csv(csv_path, mode="a", header=False, index=False)   # append
 
-    # ---- Resultat --------------------------------------------------------
     st.success("Kandidaten sparades i `candidates.csv`")
     st.subheader("Sparad rad")
     st.dataframe(candidate_df)
+
+# ----------------------------------------------------------------------
+# 5.  Wizard‑logik – steg‑för‑steg (se fullkoden i original‑filen)
+# ----------------------------------------------------------------------
+
 
 # ------------------------------------------------------------------
 # 5.  Wizard‑logik – visa ett formulär‑steg i taget
