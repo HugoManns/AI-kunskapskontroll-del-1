@@ -3,6 +3,7 @@ import joblib
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     confusion_matrix,
     classification_report,
@@ -72,6 +73,16 @@ def main():
         random_state=42,
         stratify=y_train
     )
+    
+    # ----- Logistic Regression -----
+    lr = LogisticRegression(
+        penalty='l2',
+        C=1.0,
+        solver='lbfgs',
+        max_iter=200,
+        random_state=42
+    )
+    lr.fit(X_train, y_train)
 
     # ----- RandomForest -----
     rf = RandomForestClassifier(
@@ -98,7 +109,9 @@ def main():
     # ---------------------------------------------
     # 5. Utvärdera modeller
     # ---------------------------------------------
-    for name, model in (("Random Forest", rf), ("XGBoost", xgb)):
+    for name, model in (("Random Forest", rf),
+                        ("XGBoost", xgb),
+                        ("Logistic Regression", lr)):
         print(f"\n=== {name} ===")
 
         # Validation
@@ -121,16 +134,21 @@ def main():
         print(f"\n ROC-AUC (Test): {roc_auc_score(y_test, y_proba):.4f}")
 
     # 6. Spara modeller + metadata
+    # ---- 6. Spara modeller + metadata ----
     joblib.dump(
         {
-            "rf_model": rf,
-            "xgb_model": xgb,
-            "features": X.columns,
+            "rf_model":   rf,
+            "xgb_model":  xgb,
+            "lr_model":   lr,
+            "features":   X.columns,
             "dummy_cols": haveworked_dummies.columns.tolist(),
-            "cat_opts": cat_options,
+            "cat_opts":   cat_options,
+            "X_val":      X_val,
+            "y_val":      y_val
         },
         MODEL_FILE
     )
+
     print(f"\n Modellpaketet sparat som {MODEL_FILE}")
 
 

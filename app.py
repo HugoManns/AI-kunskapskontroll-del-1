@@ -1,7 +1,14 @@
 import streamlit as st
 import pandas as pd
 import joblib
-
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import (
+    roc_curve,
+    roc_auc_score,
+    confusion_matrix,
+    ConfusionMatrixDisplay,
+)
 MODEL_FILE = "model_stl.pkl"
 
 
@@ -22,18 +29,25 @@ st.title("Rekryterare – Anställnings‑sannolikhet")
 
 
 
+
+
 # Radio‑val för model
 
 model_choice = st.radio(
     "Välj modell",
-    options=["Random Forest", "XGBoost"],
+    options=["Random Forest", "XGBoost", "Logistic Regression"],
     index=0
 )
 
 
 # Ladda rätt modell
 
-model = meta["rf_model"] if model_choice == "Random Forest" else meta["xgb_model"]
+if model_choice == "Random Forest":
+    model = meta["rf_model"]
+elif model_choice == "XGBoost":
+    model = meta["xgb_model"]
+else:
+    model = meta["lr_model"]
 
 
 
@@ -109,6 +123,40 @@ if st.button("Beräkna sannolikhet"):
     st.caption(
         f"Pre‑bedömning: **{'Anställd' if pred == 1 else 'Ej anställd'}**"
     )
-    st.json(candidate_df.iloc[0].to_dict())
+    # st.json(candidate_df.iloc[0].to_dict())
 
+if set(["X_val", "y_val"]).issubset(meta):
+    X_val = meta["X_val"]
+    y_val = meta["y_val"]
 
+    col1, col2 = st.columns(2)
+
+# ----- Plot 1: ROC-kurva -----
+with col1:
+    st.write("### ROC-kurva (Validering)")
+    y_proba_val = model.predict_proba(X_val)[:, 1]
+    fpr, tpr, _ = roc_curve(y_val, y_proba_val)
+    auc_val = roc_auc_score(y_val, y_proba_val)
+
+    fig_roc, ax_roc = plt.subplots(figsize=(5, 4)) # Justera storleken här
+    ax_roc.plot(fpr, tpr, color="darkorange", lw=2,
+                label=f"ROC kurva (AUC={auc_val:.3f})")
+    ax_roc.plot([0, 1], [0, 1], color="navy", lw=1, linestyle="--")
+    ax_roc.set_xlabel("Falsk positivt förhållande (FPR)")
+    ax_roc.set_ylabel("Säker positivt förhållande (TPR)")
+    ax_roc.set_title("Receiver Operating Characteristic")
+    ax_roc.legend(loc="lower right")
+    st.pyplot(fig_roc)
+    plt.close(fig_roc) # Viktigt för att undvika att plotarna ritas om
+
+# ----- Plot 2: Confusion-matrix -----
+with col2:
+    st.write("### Confusion-matrix (Validering)")
+    y_pred_val = (y_proba_val >= 0.5).astype(int)
+    cm = confusion_matrix(y_val, y_pred_val, labels=[0, 1])
+
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["Ej anställd", "Anställd"])
+    fig_cm, ax_cm = plt.subplots(figsize=(5, 4)) # Justera storleken här
+    disp.plot(ax=ax_cm, cmap="viridis", xticks_rotation='vertical')
+    st.pyplot(fig_cm)
+    plt.close(fig_cm)
