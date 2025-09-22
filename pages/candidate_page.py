@@ -44,11 +44,11 @@ def finish_and_save():
     computer_skills  = len(skills_selected)
 
     # --- email --------------------------------------------------------
-    email        = st.session_state.get("email", "unknown@example.com")
+    user_email = st.session_state.get("email")
 
     # --- bygga rad ----------------------------------------------------
     row = {
-        "Email": email,
+        "Email": user_email,
         "Age": age,
         "EdLevel": ed_level,
         "Country_grouped": country,
@@ -68,7 +68,7 @@ def finish_and_save():
     candidate_df = encoded.reindex(columns=X_FEATURES, fill_value=0)
 
     # lägg till email – denna kolumn **även** i filen
-    candidate_df["Email"] = email
+    candidate_df["Email"] = user_email
 
     # --- skriv till csv -----------------------------------------------
     csv_path = "candidates.csv"
@@ -93,7 +93,7 @@ step = st.session_state.step
 
 # ---------- Steg 0 – Ålder ------------------------------------------
 if step == 0:
-    st.subheader("1️⃣  Ålder")
+    st.subheader("Ålder")
 
     age_num = st.number_input(
         "Ålder",
@@ -114,12 +114,12 @@ if step == 0:
 
     col_next, _ = st.columns([1, 1])
     with col_next:
-        st.button("Nästa ➡️", on_click=next_step)
+        st.button("Nästa", on_click=next_step)
 
 # ---------- Steg 1 – Email (nytt steg) --------------------------------
 elif step == 1:
-    st.subheader("✉️  Emailadress")
-    st.text_input(
+    st.subheader("Emailadress")
+    user_email = st.text_input(
         "Ange kandidatens email",
         value="",
         key="email"
@@ -131,7 +131,7 @@ elif step == 1:
     with col_prev:
         st.button("← Back", on_click=prev_step)
     with col_next:
-        st.button("Nästa ➡️", on_click=next_step)
+        st.button("Nästa", on_click=next_step)
 
 # ---------- Steg 2 – Utbildningsnivå --------------------------------
 elif step == 2:
@@ -145,7 +145,7 @@ elif step == 2:
     with col_prev:
         st.button("← Back", on_click=prev_step)
     with col_next:
-        st.button("Nästa ➡️", on_click=next_step)
+        st.button("Nästa", on_click=next_step)
 
 # ---------- Steg 3 – Land --------------------------------------------
 elif step == 3:
@@ -159,7 +159,7 @@ elif step == 3:
     with col_prev:
         st.button("← Back", on_click=prev_step)
     with col_next:
-        st.button("Nästa ➡️", on_click=next_step)
+        st.button("Nästa", on_click=next_step)
 
 # ---------- Steg 4 – Huvudgren ---------------------------------------
 elif step == 4:
@@ -173,7 +173,7 @@ elif step == 4:
     with col_prev:
         st.button("← Back", on_click=prev_step)
     with col_next:
-        st.button("Nästa ➡️", on_click=next_step)
+        st.button("Nästa", on_click=next_step)
 
 # ---------- Steg 5 – Anställning ------------------------------------
 elif step == 5:
@@ -194,7 +194,7 @@ elif step == 5:
     with col_prev:
         st.button("← Back", on_click=prev_step)
     with col_next:
-        st.button("Nästa ➡️", on_click=next_step)
+        st.button("Nästa", on_click=next_step)
 
 # ---------- Steg 6 – Numeriska attribut --------------------------------
 elif step == 6:
@@ -228,7 +228,7 @@ elif step == 6:
     with col_prev:
         st.button("← Back", on_click=prev_step)
     with col_next:
-        st.button("Nästa ➡️", on_click=next_step)
+        st.button("Nästa", on_click=next_step)
 
 # ---------- Steg 7 – Färdigheter (sista steg, innehåller Spara) ---------
 elif step == 7:

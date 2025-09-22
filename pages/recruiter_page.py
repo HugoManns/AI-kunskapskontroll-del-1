@@ -103,7 +103,7 @@ st.dataframe(
 # 6. Ladda ned fil
 csv_bytes = df_all.to_csv(index=False).encode("utf-8")
 st.download_button(
-    label="📥 Ladda ned CSV med kandidater",
+    label="Ladda ned CSV med kandidater",
     data=csv_bytes,
     file_name="potential_candidates.csv",
     mime="text/csv",
