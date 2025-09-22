@@ -19,12 +19,7 @@ if "answers" not in st.session_state:
 
 st.set_page_config(page_title="Nytt kandidatinlägg", layout="wide")
 st.title("Lägg till en ny kandidat – steg för steg")
-
 # ----------------------------------------------------------------------
-# 5.  Wizard‑logik (samma som tidigare – se sista block i filen)
-# ----------------------------------------------------------------------
-# (kommentera gärna bort den gamla “write‑to‑csv”‑logiken, se slutet i filen – du hittar den t.ex. i
-#  “# ---------- Steg 7 – Färdigheter …”)
 
 def next_step():  st.session_state.step += 1
 def prev_step():  st.session_state.step -= 1
