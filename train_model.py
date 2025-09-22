@@ -17,19 +17,22 @@ MODEL_FILE = "model_stl.pkl"
 def main():
     df = pd.read_csv(TRAIN_CSV)
 
-    # 1. Data‑rengöring
+    # Cleaning
     df["Country_raw"] = df["Country"]
     counts = df["Country_raw"].value_counts()
     rare   = counts[counts < 2].index
     df["Country_grouped"] = df["Country_raw"].replace(rare, "Other")
     valid  = counts[counts >= 2].index
     df = df[df["Country_raw"].isin(valid)]
+
+
     # Droppa kolumner
     cols_drop = ["Gender", "MentalHealth", "Accessibility", "Unnamed: 0"]
     df = df.drop(columns=[c for c in cols_drop if c in df.columns])
     # YearsCodePro ska inte konna vara mer än YearsCode
     df = df[df["YearsCodePro"] <= df["YearsCode"]]
     df = df.drop(df[(df["Age"] == "<35") & (df["YearsCode"] > 35)].index)
+
     # Normalisera lön baserat på land
     median_salary_by_country = df.groupby("Country")["PreviousSalary"].median()
     df["PreviousSalary_norm"] = df.apply(
@@ -37,14 +40,16 @@ def main():
     )
     df = df.drop(columns="PreviousSalary")
 
-    # 2. Dummy‑kolumner för HaveWorkedWith - 
+    #  Dummy‑kolumner för HaveWorkedWith 
     haveworked_dummies = df["HaveWorkedWith"].str.get_dummies(sep=";")
     df = pd.concat([df.drop(columns="HaveWorkedWith"), haveworked_dummies], axis=1)
-    # Räkna och spara antal kunskaper/teknologier och spara det
+
+
+    # Räkna antal teknologier "Computerskills" och spara det
     computer_skills = haveworked_dummies.columns.tolist()
     df["ComputerSkills"] = haveworked_dummies.sum(axis=1)
 
-    # 3. Features / target  (före one‑hot)
+    # Features / target  före one‑hot
     X = df.drop(columns=["Employed", "Country_raw"])
     y = df["Employed"]
 
@@ -65,7 +70,7 @@ def main():
         stratify=y
     )
 
-    # Train/Validation-split (20 % av train = val)
+    # Train/Validation split
     X_train, X_val, y_train, y_val = train_test_split(
         X_train, y_train,
         test_size=0.2,
@@ -73,7 +78,7 @@ def main():
         stratify=y_train
     )
 
-    # ----- RandomForest -----
+    #RandomFrest
     rf = RandomForestClassifier(
         n_estimators=300,
         max_depth=None,
@@ -82,7 +87,7 @@ def main():
     )
     rf.fit(X_train, y_train)
 
-    # ----- XGBoost -----
+    #XGBoost
     xgb = XGBClassifier(
         n_estimators=300,
         learning_rate=0.1,
@@ -95,8 +100,7 @@ def main():
     )
     xgb.fit(X_train, y_train)
 
-    # ---------------------------------------------
-    # 5. Utvärdera modeller
+    # Utvärdera modeller
     for name, model in (("Random Forest", rf), ("XGBoost", xgb)):
         print(f"\n=== {name} ===")
 
@@ -119,7 +123,7 @@ def main():
 
         print(f"\n ROC-AUC (Test): {roc_auc_score(y_test, y_proba):.4f}")
 
-    # 6. Spara modeller + metadata
+    #Spara modeller + metadata
     joblib.dump(
         {
             "rf_model": rf,
