@@ -50,7 +50,7 @@ df_all = pd.read_csv(
     names=ALL_COLUMNS, # Ange de exakta kolumnnamnen vid inläsning
     engine="python",
     on_bad_lines="skip",
-    na_values=[0] # Behandla nollor som saknade värden om det är så de sparas
+    na_values=[0]
 )
 
 # -----------------------------------------------
@@ -71,7 +71,7 @@ df_all = df_all.reset_index(drop=True)
 df_all["Kandidatindex"] = df_all.index + 1
 
 # -----------------------------------------------
-# 5. Visa tabell (inkludera Email om den finns)
+# 5. Visa tabell
 display_cols = ["Kandidatindex", "Probability", "Prediction", "Percentile", "Email", "Employed"]
 
 def color_pred(val):
