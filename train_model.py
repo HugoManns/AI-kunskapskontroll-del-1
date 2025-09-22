@@ -26,26 +26,27 @@ def main():
     df = df[df["Country_raw"].isin(valid)]
 
 
-    # Droppa kolumner
+    
     cols_drop = ["Gender", "MentalHealth", "Accessibility", "Unnamed: 0"]
     df = df.drop(columns=[c for c in cols_drop if c in df.columns])
-    # YearsCodePro ska inte konna vara mer än YearsCode
+
+
     df = df[df["YearsCodePro"] <= df["YearsCode"]]
     df = df.drop(df[(df["Age"] == "<35") & (df["YearsCode"] > 35)].index)
 
-    # Normalisera lön baserat på land
+
     median_salary_by_country = df.groupby("Country")["PreviousSalary"].median()
     df["PreviousSalary_norm"] = df.apply(
         lambda r: r["PreviousSalary"] / median_salary_by_country[r["Country"]], axis=1
     )
     df = df.drop(columns="PreviousSalary")
 
-    #  Dummy‑kolumner för HaveWorkedWith 
+
     haveworked_dummies = df["HaveWorkedWith"].str.get_dummies(sep=";")
     df = pd.concat([df.drop(columns="HaveWorkedWith"), haveworked_dummies], axis=1)
 
 
-    # Räkna antal teknologier "Computerskills" och spara det
+
     computer_skills = haveworked_dummies.columns.tolist()
     df["ComputerSkills"] = haveworked_dummies.sum(axis=1)
 
@@ -53,7 +54,7 @@ def main():
     X = df.drop(columns=["Employed", "Country_raw"])
     y = df["Employed"]
 
-    # Bevar unika värden för ursprungliga kategoriska kolumner
+
     cat_cols = X.select_dtypes(include="object").columns.tolist()
     cat_options = {c: df[c].unique().tolist() for c in cat_cols}
 
@@ -62,7 +63,7 @@ def main():
 
 
 
-        # Train/Test-split
+    
     X_train, X_test, y_train, y_test = train_test_split(
         X, y,
         test_size=0.2,
@@ -70,7 +71,7 @@ def main():
         stratify=y
     )
 
-    # Train/Validation split
+   
     X_train, X_val, y_train, y_val = train_test_split(
         X_train, y_train,
         test_size=0.2,
@@ -78,7 +79,7 @@ def main():
         stratify=y_train
     )
 
-    #RandomFrest
+    
     rf = RandomForestClassifier(
         n_estimators=300,
         max_depth=None,
@@ -87,7 +88,7 @@ def main():
     )
     rf.fit(X_train, y_train)
 
-    #XGBoost
+    
     xgb = XGBClassifier(
         n_estimators=300,
         learning_rate=0.1,
@@ -104,12 +105,12 @@ def main():
     for name, model in (("Random Forest", rf), ("XGBoost", xgb)):
         print(f"\n=== {name} ===")
 
-        # Validation
+        
         y_val_pred = model.predict(X_val)
         val_acc = accuracy_score(y_val, y_val_pred)
         print(f"Validation Accuracy: {val_acc:.4f}")
 
-        # Test
+        
         y_pred = model.predict(X_test)
         y_proba = model.predict_proba(X_test)[:, 1]
         test_acc = accuracy_score(y_test, y_pred)
