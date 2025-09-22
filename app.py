@@ -5,7 +5,7 @@ import joblib
 MODEL_FILE = "model_stl.pkl"
 
 
-# 1.  Ladda modell + metadata
+# 1.  Ladda modell
 
 meta = joblib.load(MODEL_FILE)
 
@@ -14,15 +14,12 @@ DUMMY_COLS = meta["dummy_cols"]
 CAT_OPTIONS = meta["cat_opts"]
 
 
-
-# 2.  Streamlit‑layout
-
 st.set_page_config(page_title="Rekryterings‑sannolikhet", layout="wide")
 st.title("Rekryterare – Anställnings‑sannolikhet")
 
 
 
-# Radio‑val för model
+#model val på vänsterfliken
 
 model_choice = st.radio(
     "Välj modell",
@@ -37,7 +34,7 @@ model = meta["rf_model"] if model_choice == "Random Forest" else meta["xgb_model
 
 
 
-# 3.  Kandidatens attribut
+# Kandidatens attribut
 
 col1, col2 = st.columns([1, 2])
 
@@ -58,7 +55,7 @@ with col2:
         min_value=0.0, max_value=6.0, value=1.0, step=0.01
     )
 
-    st.subheader("Färdigheter (max 15)")
+    st.subheader("Färdigheter max 15")
     skills_selected = st.multiselect(
         "Har arbetat med",
         options=sorted(DUMMY_COLS),
@@ -70,7 +67,7 @@ with col2:
 
 
 
-# 4.  Bygg kandidat‑row
+# Bygg kandidatrad
 def build_candidate_row():
     row = {
         "Age": age,
@@ -86,7 +83,7 @@ def build_candidate_row():
 
 
 
-    # HaveWorkedWith‑dummies
+# HaveWorkedWith‑dummies
     for col in DUMMY_COLS:
         row[col] = 1 if col in skills_selected else 0
 
@@ -97,7 +94,7 @@ def build_candidate_row():
 
 
 
-# 5.  Prediktion
+# Prediktion
 
 if st.button("Beräkna sannolikhet"):
     candidate_df = build_candidate_row()

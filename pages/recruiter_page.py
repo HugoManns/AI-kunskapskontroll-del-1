@@ -1,22 +1,21 @@
-# --- imports -------------------------------------------------------------
+#imports
 import os
 import streamlit as st
 import pandas as pd
 import joblib
 import numpy as np
 
-# --- metadata -------------------------------------------------------------
 MODEL_FILE = "model_stl.pkl"
 
-# Use st.cache_resource to load the model once
+
 @st.cache_resource
 def load_meta():
     return joblib.load(MODEL_FILE)
 
 META = load_meta()
 
-# -----------------------------------------------
-# 1. Modell (sparad i session_state så den finns när vi räknar)
+
+# Modell sparad i session_state så den finns när vi räknar
 if "model" not in st.session_state:
     st.sidebar.title("Modell")
     model_choice = st.sidebar.radio(
@@ -33,35 +32,30 @@ if "model" not in st.session_state:
 
 model = st.session_state.model
 
-# -----------------------------------------------
-# 2. Läs CSV – Korrigerat sätt att läsa in data
+
 csv_path = "candidates.csv"
 if not os.path.exists(csv_path):
     st.info(f"Fil `{csv_path}` finns inte. Lägg in kandidater via *Lägg till kandidat*-sidan.")
     st.stop()
 
-# Skapa en lista med alla förväntade kolumnnamn från modellen + de manuella
+
 ALL_COLUMNS = list(META["features"]) + ["Email"]
 
-# Läs filen med pandas, nu med rätt antal kolumner
+
 df_all = pd.read_csv(
     csv_path,
     header=None,
-    names=ALL_COLUMNS, # Ange de exakta kolumnnamnen vid inläsning
+    names=ALL_COLUMNS, 
     engine="python",
     on_bad_lines="skip",
     na_values=[0]
 )
 
-# -----------------------------------------------
-# 3. Hantera "Employed"-kolumnen
-# Denna kolumn är inte i din `candidates.csv`, så vi skapar den
-# och ger den ett standardvärde (t.ex. "-")
+
 if "Employed" not in df_all.columns:
     df_all["Employed"] = "-"
 
-# -----------------------------------------------
-# 4. Beräkna sannolikheter
+
 X = df_all[META["features"]].copy()
 prob = model.predict_proba(X)[:, 1]
 df_all["Probability"] = prob
@@ -70,8 +64,7 @@ df_all["Percentile"] = pd.Series(prob).rank(pct=True) * 100
 df_all = df_all.reset_index(drop=True)
 df_all["Kandidatindex"] = df_all.index + 1
 
-# -----------------------------------------------
-# 5. Visa tabell
+
 display_cols = ["Kandidatindex", "Probability", "Prediction", "Percentile", "Email", "Employed"]
 
 def color_pred(val):
@@ -113,8 +106,8 @@ st.dataframe(
     hide_index=True
 )
 
-# -----------------------------------------------
-# 6. Ladda ned fil
+
+# Ladda ned fil
 csv_bytes = df_all.to_csv(index=False).encode("utf-8")
 st.download_button(
     label="Ladda ned CSV med kandidater",
