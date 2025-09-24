@@ -54,6 +54,7 @@ def main():
     X = df.drop(columns=["Employed", "Country_raw"])
     y = df["Employed"]
 
+    strat_col = df["Country_grouped"]
 
     cat_cols = X.select_dtypes(include="object").columns.tolist()
     cat_options = {c: df[c].unique().tolist() for c in cat_cols}
@@ -68,7 +69,7 @@ def main():
         X, y,
         test_size=0.2,
         random_state=42,
-        stratify=y
+        stratify=strat_col
     )
 
    
@@ -76,7 +77,7 @@ def main():
         X_train, y_train,
         test_size=0.2,
         random_state=42,
-        stratify=y_train
+        stratify=strat_col.loc[X_train.index] 
     )
 
     
@@ -102,8 +103,9 @@ def main():
     xgb.fit(X_train, y_train)
 
     # Utvärdera modeller
+    auc_scores = {}
     for name, model in (("Random Forest", rf), ("XGBoost", xgb)):
-        print(f"\n=== {name} ===")
+        print(f"\n{name}")
 
         
         y_val_pred = model.predict(X_val)
@@ -121,20 +123,32 @@ def main():
 
         print("\n Klassifikations-rapport (Test)")
         print(classification_report(y_test, y_pred, zero_division=0))
-
+        auc = roc_auc_score(y_test, y_proba)
+        auc_scores[name] = auc
         print(f"\n ROC-AUC (Test): {roc_auc_score(y_test, y_proba):.4f}")
+
+
+
+    # Välj bästa modell
+    best_name = max(auc_scores, key=auc_scores.get)
+    best_model = rf if best_name == "Random Forest" else xgb
+    print(f"\nBästa modell: {best_name} (ROC-AUC: {auc_scores[best_name]:.4f})")
+
+    # Träna om bästa modellen på hela datan för produktion
+    X_full = pd.get_dummies(df.drop(columns=["Employed", "Country_raw"]), drop_first=True)
+    y_full = df["Employed"]
+    best_model.fit(X_full, y_full)
 
     #Spara modeller + metadata
     joblib.dump(
-        {
-            "rf_model": rf,
-            "xgb_model": xgb,
-            "features": X.columns,
-            "dummy_cols": haveworked_dummies.columns.tolist(),
-            "cat_opts": cat_options,
-        },
-        MODEL_FILE
-    )
+    {
+        "best_model": best_model,           
+        "features": X.columns,
+        "dummy_cols": haveworked_dummies.columns.tolist(),
+        "cat_opts": cat_options,
+    },
+    MODEL_FILE
+)
     print(f"\n Modellpaketet sparat som {MODEL_FILE}")
 
 
