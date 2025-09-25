@@ -60,23 +60,22 @@ def main():
 
     # One‑hot encode alla kvarstående objekt‑kolumner
     X = pd.get_dummies(X, drop_first=True)
-
-
-
     
+    strat_col = df["Country_grouped"]
+
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y,
-        test_size=0.2,
-        random_state=42,
-        stratify=y
+    X, y,
+    test_size=0.2,
+    random_state=42,
+    stratify=strat_col        
     )
 
    
     X_train, X_val, y_train, y_val = train_test_split(
-        X_train, y_train,
-        test_size=0.2,
-        random_state=42,
-        stratify=y_train
+    X_train, y_train,
+    test_size=0.2,
+    random_state=42,
+    stratify=strat_col.loc[X_train.index]
     )
 
     
@@ -124,19 +123,39 @@ def main():
 
         print(f"\n ROC-AUC (Test): {roc_auc_score(y_test, y_proba):.4f}")
 
-    #Spara modeller + metadata
-    joblib.dump(
-        {
-            "rf_model": rf,
-            "xgb_model": xgb,
-            "features": X.columns,
-            "dummy_cols": haveworked_dummies.columns.tolist(),
-            "cat_opts": cat_options,
-        },
-        MODEL_FILE
-    )
-    print(f"\n Modellpaketet sparat som {MODEL_FILE}")
+        X_full = pd.get_dummies(df.drop(columns=["Employed", "Country_raw"]), drop_first=True)
+        y_full = df["Employed"]
 
+    rf_full = RandomForestClassifier(
+        n_estimators=300,
+        max_depth=None,
+        random_state=42,
+        n_jobs=-1
+    ).fit(X_full, y_full)
+
+    xgb_full = XGBClassifier(
+        n_estimators=300,
+        learning_rate=0.1,
+        max_depth=None,
+        subsample=0.8,
+        random_state=42,
+        use_label_encoder=False,
+        eval_metric="logloss",
+        n_jobs=-1
+    ).fit(X_full, y_full)
+
+
+    joblib.dump(
+    {
+        "rf_model": rf_full,                  
+        "xgb_model": xgb_full,                
+        "features": X_full.columns,
+        "dummy_cols": haveworked_dummies.columns.tolist(),
+        "cat_opts": cat_options,             
+    },
+    MODEL_FILE
+)
+    print(f"\nFull-train modeller sparade i {MODEL_FILE}")
 
 if __name__ == "__main__":
     main()

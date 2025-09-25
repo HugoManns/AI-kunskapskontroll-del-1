@@ -96,12 +96,6 @@ def color_prediction(val):
 
 st.subheader("Kandidater")
 st.dataframe(
-    df_view.style.applymap(color_prediction, subset=["Prediction"]),
-    hide_index=True
-)
-
-
-st.dataframe(
     df_view.style.applymap(color_pred, subset=["Prediction"]),
     hide_index=True
 )
