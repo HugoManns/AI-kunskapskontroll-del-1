@@ -30,7 +30,8 @@ model_choice = st.radio(
 
 # Ladda rätt modell
 
-model = meta["rf_model"] if model_choice == "Random Forest" else meta["xgb_model"]
+model = meta["best_model"]
+
 
 
 

@@ -17,18 +17,7 @@ META = load_meta()
 
 # Modell sparad i session_state så den finns när vi räknar
 if "model" not in st.session_state:
-    st.sidebar.title("Modell")
-    model_choice = st.sidebar.radio(
-        "Välj modell för att beräkna sannolikheten",
-        options=["Random Forest", "XGBoost", "Logistic Regression"],
-        index=0,
-    )
-    if model_choice == "Random Forest":
-        st.session_state.model = META["rf_model"]
-    elif model_choice == "XGBoost":
-        st.session_state.model = META["xgb_model"]
-    else:
-        st.session_state.model = META["lr_model"]
+    st.session_state.model = META["best_model"]
 
 model = st.session_state.model
 
