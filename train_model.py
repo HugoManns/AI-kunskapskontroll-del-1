@@ -155,7 +155,7 @@ def main():
     best_model = rf if best_name == "Random Forest" else xgb
     print(f"\nBästa modell: {best_name} (ROC-AUC: {auc_scores[best_name]:.4f})")
 
-    # Träna om bästa modellen på hela datan för produktion
+    # Träna om bästa modellen på hela datan för produktion..
     X_full = pd.get_dummies(df.drop(columns=["Employed", "Country_raw"]), drop_first=True)
     y_full = df["Employed"]
     best_model.fit(X_full, y_full)

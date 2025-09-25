@@ -15,7 +15,7 @@ def load_meta():
 META = load_meta()
 
 
-# Modell sparad i session_state så den finns när vi räknar
+# Modell sparad i session_state så den finns när vi räknar..
 if "model" not in st.session_state:
     st.session_state.model = META["best_model"]
 
