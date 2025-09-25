@@ -20,16 +20,13 @@ if "model" not in st.session_state:
     st.sidebar.title("Modell")
     model_choice = st.sidebar.radio(
         "Välj modell för att beräkna sannolikheten",
-        options=["Random Forest", "XGBoost", "Logistic Regression"],
+        options=["Random Forest"],
         index=0,
     )
     if model_choice == "Random Forest":
         st.session_state.model = META["rf_model"]
-    elif model_choice == "XGBoost":
-        st.session_state.model = META["xgb_model"]
-    else:
-        st.session_state.model = META["lr_model"]
-
+    
+ 
 model = st.session_state.model
 
 
